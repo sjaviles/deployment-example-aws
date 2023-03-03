@@ -11,7 +11,6 @@
             "portMappings": [
                 {
                     "containerPort": 8001,
-                    "hostPort": 8001,
                     "protocol": "tcp"
                 }
             ],
@@ -28,12 +27,12 @@
             "extraHosts": [],
             "dockerSecurityOptions": [],
             "dockerLabels": {},
-            "ulimits": [],
+            "limits": [],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/paketo",
-                    "awslogs-region": "us-east-2",
+                    "awslogs-group": "",
+                    "awslogs-region": "",
                     "awslogs-stream-prefix": "ecs"
                 },
                 "secretOptions": []
@@ -41,7 +40,7 @@
             "systemControls": []
         }
     ],
-    "family": "paketo",
+    "family": "",
     "taskRoleArn": "TASK_EXECUTION_ROLE",
     "executionRoleArn": "TASK_EXECUTION_ROLE",
     "networkMode": "awsvpc",

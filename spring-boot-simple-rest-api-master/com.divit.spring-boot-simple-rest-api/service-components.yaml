@@ -1,6 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: ""
 Parameters:
+  Consultora:
+    Type: String
+    Description: Nombre de la consultora
   ServiceName:
     Type: String
     Description: Nombre del microservicio
@@ -15,10 +18,6 @@ Parameters:
     Type: String 
     Description: Basepath en API Gateway
     Default: ""
-  StageName:
-    Type: String 
-    Description: Nombre del stage del API Gateway
-    Default: prod    
   ContainerPort:
     Type: Number
     Description: port number exposed from the container image.
@@ -27,9 +26,6 @@ Parameters:
     Type: Number
     Description: Prioridad de de la regla en el listener. No se debe repetir.
     Default: 1
-
-Conditions:
-  IsAPIBasePathNotEmpty:  !Not [!Equals [!Ref "APIBasePath", ""]]
 
 Resources:
     ElasticLoadBalancingV2TargetGroup:
@@ -78,7 +74,6 @@ Resources:
                 Value: "round_robin"
 
     ALBListenerProdRule:
-      Condition: IsAPIBasePathNotEmpty
       Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
       Properties:
         Actions:
@@ -99,11 +94,12 @@ Resources:
 
     ECSService:
         Type: "AWS::ECS::Service"
-        DependsOn: 
+        DependsOn:
           - TaskLogGroup
+          - ALBListenerProdRule
         Properties:
             ServiceName: !Ref ServiceName
-            Cluster: !ImportValue ECSCluster
+            Cluster: !Sub "ECSCluster-${Consultora}"
             LoadBalancers: 
               - 
                 TargetGroupArn: !Ref ElasticLoadBalancingV2TargetGroup
@@ -151,85 +147,3 @@ Resources:
       Properties:
         LogGroupName: !Sub '/ecs/${ServiceName}'
         RetentionInDays: 30
-
-
-##############################
-# Definición de API Gateway  #
-##############################
-    Api:
-      Condition: IsAPIBasePathNotEmpty
-      Type: 'AWS::ApiGateway::RestApi'
-      Properties:
-        Name: !Ref ServiceName
-
-    Resource:
-      Condition: IsAPIBasePathNotEmpty
-      Type: 'AWS::ApiGateway::Resource'
-      Properties:
-        ParentId: !GetAtt Api.RootResourceId
-        RestApiId: !Ref Api
-        PathPart: '{proxy+}'
-
-    RootMethod:
-      Condition: IsAPIBasePathNotEmpty
-      Type: 'AWS::ApiGateway::Method'
-      Properties:
-        HttpMethod: ANY
-        ResourceId: !GetAtt Api.RootResourceId
-        RestApiId: !Ref Api
-        AuthorizationType: NONE
-        Integration:
-          IntegrationHttpMethod: ANY
-          ConnectionType: VPC_LINK
-          ConnectionId: !ImportValue ApiGatewayVpcLink        
-          Type: HTTP_PROXY
-          Uri: !Sub 
-            - "http://${DNSNLB}${APIBasePath}"
-            - DNSNLB: !ImportValue DNSNLB
-          PassthroughBehavior: WHEN_NO_MATCH
-          IntegrationResponses:
-            - StatusCode: 200
-
-    ProxyMethod:
-      Condition: IsAPIBasePathNotEmpty
-      Type: 'AWS::ApiGateway::Method'
-      Properties:
-        HttpMethod: ANY
-        ResourceId: !Ref Resource
-        RestApiId: !Ref Api
-        AuthorizationType: NONE
-        RequestParameters:
-          method.request.path.proxy: true
-        Integration:
-          RequestParameters:
-            integration.request.path.proxy: 'method.request.path.proxy'
-          IntegrationHttpMethod: ANY
-          ConnectionType: VPC_LINK
-          ConnectionId: !ImportValue ApiGatewayVpcLink
-          Type: HTTP_PROXY
-          Uri: !Sub 
-            - "http://${DNSNLB}${APIBasePath}"
-            - DNSNLB: !ImportValue DNSNLB
-          PassthroughBehavior: WHEN_NO_MATCH
-          IntegrationResponses:
-            - StatusCode: 200
-
-    Deployment:
-      Condition: IsAPIBasePathNotEmpty    
-      DependsOn:
-        - RootMethod
-        - ProxyMethod
-      Type: 'AWS::ApiGateway::Deployment'
-      Properties:
-        RestApiId: !Ref Api
-        StageName: !Ref StageName
-
-    APIKey:
-      Condition: IsAPIBasePathNotEmpty
-      Type: AWS::ApiGateway::ApiKey
-      Properties: 
-        Enabled: true
-        Name: !Sub "${ServiceName}-apikey"
-        StageKeys: 
-          - RestApiId: !Ref Api
-            StageName: prod

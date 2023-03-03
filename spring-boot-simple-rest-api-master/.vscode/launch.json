@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Application<com.divit.spring-boot-simple-rest-api>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "mainClass": "com.divit.springboot.application.Application",
+            "projectName": "com.divit.spring-boot-simple-rest-api",
+            "args": ""
+        }
+    ]
+}
